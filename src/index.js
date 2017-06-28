@@ -395,6 +395,12 @@ class InputElement extends React.Component {
       if (typeof this.props.onChange === 'function') {
         this.props.onChange(event);
       }
+    } else {
+
+      if (typeof this.props.invalidCharCallback === 'function') {
+        this.props.invalidCharCallback();
+      }
+
     }
 
     event.preventDefault();
