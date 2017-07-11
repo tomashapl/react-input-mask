@@ -725,6 +725,11 @@ var _initialiseProps = function _initialiseProps() {
         value = clearRange(_this2.maskOptions, value, selection.start, selection.length);
         value = insertString(_this2.maskOptions, value, key, editablePos);
         cursorPos = editablePos + 1;
+      } else {
+
+        if (typeof _this2.props.invalidCharCallback === 'function') {
+          _this2.props.invalidCharCallback();
+        }
       }
     }
 
@@ -735,11 +740,6 @@ var _initialiseProps = function _initialiseProps() {
       });
       if (typeof _this2.props.onChange === 'function') {
         _this2.props.onChange(event);
-      }
-    } else {
-
-      if (typeof _this2.props.invalidCharCallback === 'function') {
-        _this2.props.invalidCharCallback();
       }
     }
 

@@ -384,6 +384,12 @@ class InputElement extends React.Component {
         value = clearRange(this.maskOptions, value, selection.start, selection.length);
         value = insertString(this.maskOptions, value, key, editablePos);
         cursorPos = editablePos + 1;
+      } else {
+
+        if (typeof this.props.invalidCharCallback === 'function') {
+          this.props.invalidCharCallback();
+        }
+
       }
     }
 
@@ -395,12 +401,6 @@ class InputElement extends React.Component {
       if (typeof this.props.onChange === 'function') {
         this.props.onChange(event);
       }
-    } else {
-
-      if (typeof this.props.invalidCharCallback === 'function') {
-        this.props.invalidCharCallback();
-      }
-
     }
 
     event.preventDefault();
