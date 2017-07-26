@@ -985,7 +985,8 @@ var _initialiseProps = function _initialiseProps() {
         alwaysShowMask = _props.alwaysShowMask,
         maskChar = _props.maskChar,
         formatChars = _props.formatChars,
-        props = _objectWithoutProperties(_props, ['mask', 'alwaysShowMask', 'maskChar', 'formatChars']);
+        invalidCharCallback = _props.invalidCharCallback,
+        props = _objectWithoutProperties(_props, ['mask', 'alwaysShowMask', 'maskChar', 'formatChars', 'invalidCharCallback']);
 
     if (_this2.maskOptions.mask) {
       if (!props.disabled && !props.readOnly) {
