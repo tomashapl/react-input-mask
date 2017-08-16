@@ -9,7 +9,7 @@ import pjson from '../../package.json';
 var rootDir = path.resolve(__dirname, '../..');
 
 describe('CommonJS build', () => {
-  var libPath = path.resolve(rootDir, pjson.main);
+  var libPath = path.resolve(rootDir, "lib/index.js");
   var InputElement = require(libPath).default;
 
   it('should return a string', () => {
