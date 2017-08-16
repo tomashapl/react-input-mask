@@ -47,7 +47,7 @@
     "webpack": "^2.6.1",
     "webpack-dev-server": "^2.5.0"
   },
-  "main": "lib/index.js",
+  "main": "dist/react-input-mask.js",
   "module": "es/index.js",
   "jsnext:main": "es/index.js",
   "files": [
