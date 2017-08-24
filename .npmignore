@@ -1,7 +1,10 @@
+docs
 tests
 karma.conf.js
 rollup.config.js
+webpack.config.js
 package-lock.json
 .babelrc
 .gitignore
 .travis.yml
+.eslintrc.js

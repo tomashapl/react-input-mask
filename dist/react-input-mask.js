@@ -4,7 +4,7 @@
 	(global.ReactInputMask = factory(global.React));
 }(this, (function (React) { 'use strict';
 
-React = 'default' in React ? React['default'] : React;
+React = React && React.hasOwnProperty('default') ? React['default'] : React;
 
 var defaultCharsRules = {
   '9': '[0-9]',
@@ -38,13 +38,13 @@ var parseMask = function (mask, maskChar, charsRules) {
   var isPermanent = false;
   var lastEditablePos = null;
 
-  mask.split('').forEach(function (character, i) {
+  mask.split('').forEach(function (character) {
     if (!isPermanent && character === '\\') {
       isPermanent = true;
     } else {
       if (isPermanent || !charsRules[character]) {
         permanents.push(str.length);
-        if (prefix.length === i) {
+        if (str.length === permanents.length - 1) {
           prefix += character;
         }
       } else {
@@ -123,6 +123,9 @@ function getFilledLength(maskOptions, value) {
 
 
   if (!maskChar) {
+    while (value.length > prefix.length && isPermanentChar(maskOptions, value.length - 1)) {
+      value = value.slice(0, value.length - 1);
+    }
     return value.length;
   }
 
@@ -300,7 +303,7 @@ function getInsertStringLength(maskOptions, value, insertStr, insertPos) {
 }
 
 var defer = function (fn) {
-            var defer = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function (fn) {
+            var defer = window.requestAnimationFrame || window.webkitRequestAnimationFrame || window.mozRequestAnimationFrame || function () {
                         return setTimeout(fn, 0);
             };
 
@@ -310,8 +313,6 @@ var defer = function (fn) {
 var _extends = Object.assign || function (target) { for (var i = 1; i < arguments.length; i++) { var source = arguments[i]; for (var key in source) { if (Object.prototype.hasOwnProperty.call(source, key)) { target[key] = source[key]; } } } return target; };
 
 var _typeof = typeof Symbol === "function" && typeof Symbol.iterator === "symbol" ? function (obj) { return typeof obj; } : function (obj) { return obj && typeof Symbol === "function" && obj.constructor === Symbol && obj !== Symbol.prototype ? "symbol" : typeof obj; };
-
-var _createClass = function () { function defineProperties(target, props) { for (var i = 0; i < props.length; i++) { var descriptor = props[i]; descriptor.enumerable = descriptor.enumerable || false; descriptor.configurable = true; if ("value" in descriptor) descriptor.writable = true; Object.defineProperty(target, descriptor.key, descriptor); } } return function (Constructor, protoProps, staticProps) { if (protoProps) defineProperties(Constructor.prototype, protoProps); if (staticProps) defineProperties(Constructor, staticProps); return Constructor; }; }();
 
 function _objectWithoutProperties(obj, keys) { var target = {}; for (var i in obj) { if (keys.indexOf(i) >= 0) continue; if (!Object.prototype.hasOwnProperty.call(obj, i)) continue; target[i] = obj[i]; } return target; }
 
@@ -356,16 +357,9 @@ var InputElement = function (_React$Component) {
       value = formatValue(_this.maskOptions, value);
     }
 
-    _this.state = { value: value };
+    _this.value = value;
     return _this;
   }
-
-  _createClass(InputElement, [{
-    key: 'componentWillUnmount',
-    value: function componentWillUnmount() {
-      this.unmounted = true;
-    }
-  }]);
 
   return InputElement;
 }(React.Component);
@@ -374,23 +368,15 @@ var _initialiseProps = function _initialiseProps() {
   var _this2 = this;
 
   this.lastCursorPos = null;
+  this.focused = false;
 
   this.componentDidMount = function () {
     _this2.isAndroidBrowser = isAndroidBrowser();
     _this2.isWindowsPhoneBrowser = isWindowsPhoneBrowser();
     _this2.isAndroidFirefox = isAndroidFirefox();
 
-    var input = _this2.getInputDOMNode();
-
-    // workaround for Jest
-    // it doesn't mount a real node so input will be null
-    if (input && Object.getOwnPropertyDescriptor && Object.getPrototypeOf && Object.defineProperty) {
-      var valueDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value');
-      _this2.canUseAccessors = !!(valueDescriptor && valueDescriptor.get && valueDescriptor.set);
-    }
-
-    if (_this2.maskOptions.mask && _this2.props.value == null) {
-      _this2.updateUncontrolledInput();
+    if (_this2.maskOptions.mask && _this2.getInputValue() !== _this2.value) {
+      _this2.setInputValue(_this2.value);
     }
   };
 
@@ -401,13 +387,14 @@ var _initialiseProps = function _initialiseProps() {
     _this2.maskOptions = parseMask(nextProps.mask, nextProps.maskChar, nextProps.formatChars);
 
     if (!_this2.maskOptions.mask) {
+      _this2.backspaceOrDeleteRemoval = null;
       _this2.lastCursorPos = null;
       return;
     }
 
     var isMaskChanged = _this2.maskOptions.mask && _this2.maskOptions.mask !== oldMaskOptions.mask;
     var showEmpty = nextProps.alwaysShowMask || _this2.isFocused();
-    var newValue = _this2.hasValue ? _this2.getStringValue(nextProps.value) : _this2.state.value;
+    var newValue = _this2.hasValue ? _this2.getStringValue(nextProps.value) : _this2.value;
 
     if (!oldMaskOptions.mask && !_this2.hasValue) {
       newValue = _this2.getInputDOMNode().value;
@@ -435,19 +422,11 @@ var _initialiseProps = function _initialiseProps() {
     }
 
     _this2.value = newValue;
-
-    if (_this2.state.value !== newValue) {
-      _this2.setState({ value: newValue });
-    }
   };
 
-  this.componentDidUpdate = function (prevProps) {
-    if ((_this2.maskOptions.mask || prevProps.mask) && _this2.props.value == null) {
-      _this2.updateUncontrolledInput();
-    }
-
-    if (_this2.valueDescriptor && _this2.getInputValue() !== _this2.state.value) {
-      _this2.setInputValue(_this2.state.value);
+  this.componentDidUpdate = function () {
+    if (_this2.maskOptions.mask && _this2.getInputValue() !== _this2.value) {
+      _this2.setInputValue(_this2.value);
     }
   };
 
@@ -458,7 +437,6 @@ var _initialiseProps = function _initialiseProps() {
 
   this.getInputDOMNode = function () {
     var input = _this2.input;
-
     if (!input) {
       return null;
     }
@@ -471,49 +449,13 @@ var _initialiseProps = function _initialiseProps() {
     return React.findDOMNode(input);
   };
 
-  this.enableValueAccessors = function () {
-    if (_this2.canUseAccessors) {
-      var input = _this2.getInputDOMNode();
-      _this2.valueDescriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(input), 'value');
-      Object.defineProperty(input, 'value', {
-        configurable: true,
-        enumerable: true,
-        get: function get() {
-          return _this2.value;
-        },
-        set: function set(value) {
-          _this2.value = value;
-          _this2.valueDescriptor.set.call(input, value);
-        }
-      });
-    }
-  };
-
-  this.disableValueAccessors = function () {
-    var valueDescriptor = _this2.valueDescriptor;
-
-    var input = _this2.getInputDOMNode();
-    if (!valueDescriptor || !input) {
-      return;
-    }
-
-    _this2.valueDescriptor = null;
-    Object.defineProperty(input, 'value', valueDescriptor);
-  };
-
   this.getInputValue = function () {
     var input = _this2.getInputDOMNode();
-    var valueDescriptor = _this2.valueDescriptor;
-
-
-    var value;
-    if (valueDescriptor) {
-      value = valueDescriptor.get.call(input);
-    } else {
-      value = input.value;
+    if (!input) {
+      return null;
     }
 
-    return value;
+    return input.value;
   };
 
   this.setInputValue = function (value) {
@@ -547,7 +489,7 @@ var _initialiseProps = function _initialiseProps() {
   };
 
   this.setCursorToEnd = function () {
-    var filledLen = getFilledLength(_this2.maskOptions, _this2.state.value);
+    var filledLen = getFilledLength(_this2.maskOptions, _this2.value);
     var pos = _this2.getRightEditablePos(filledLen);
     if (pos !== null) {
       _this2.setCursorPos(pos);
@@ -613,165 +555,62 @@ var _initialiseProps = function _initialiseProps() {
   };
 
   this.isFocused = function () {
-    return document.activeElement === _this2.getInputDOMNode();
+    return _this2.focused;
   };
 
   this.getStringValue = function (value) {
     return !value && value !== 0 ? '' : value + '';
   };
 
-  this.updateUncontrolledInput = function () {
-    if (_this2.getInputValue() !== _this2.state.value) {
-      _this2.setInputValue(_this2.state.value);
-    }
-  };
-
   this.onKeyDown = function (event) {
-    var key = event.key,
-        ctrlKey = event.ctrlKey,
-        metaKey = event.metaKey;
+    _this2.backspaceOrDeleteRemoval = null;
 
-    var hasHandler = typeof _this2.props.onKeyDown === 'function';
-    if (ctrlKey || metaKey) {
-      if (hasHandler) {
-        _this2.props.onKeyDown(event);
-      }
-      return;
-    }
-
-    var cursorPos = _this2.getCursorPos();
-    var value = _this2.state.value;
-    var prefix = _this2.maskOptions.prefix;
-
-    var preventDefault = false;
-    switch (key) {
-      case 'Backspace':
-      case 'Delete':
-        var deleteFromRight = key === 'Delete';
-        var selectionRange = _this2.getSelection();
-        if (selectionRange.length) {
-          value = clearRange(_this2.maskOptions, value, selectionRange.start, selectionRange.length);
-        } else if (cursorPos < prefix.length || !deleteFromRight && cursorPos === prefix.length) {
-          cursorPos = prefix.length;
-        } else {
-          var editablePos = deleteFromRight ? _this2.getRightEditablePos(cursorPos) : _this2.getLeftEditablePos(cursorPos - 1);
-
-          if (editablePos !== null) {
-            value = clearRange(_this2.maskOptions, value, editablePos, 1);
-            cursorPos = editablePos;
-          }
-        }
-        preventDefault = true;
-        break;
-      default:
-        break;
-    }
-
-    if (hasHandler) {
+    if (typeof _this2.props.onKeyDown === 'function') {
       _this2.props.onKeyDown(event);
     }
 
-    if (value !== _this2.state.value) {
-      preventDefault = true;
+    var key = event.key,
+        ctrlKey = event.ctrlKey,
+        metaKey = event.metaKey,
+        defaultPrevented = event.defaultPrevented;
 
-      _this2.setInputValue(value);
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : value
-      });
-
-      if (typeof _this2.props.onChange === 'function') {
-        _this2.props.onChange(event);
-      }
+    if (ctrlKey || metaKey || defaultPrevented) {
+      return;
     }
 
-    if (preventDefault) {
-      event.preventDefault();
-      _this2.setCursorPos(cursorPos);
+    if (key === 'Backspace' || key === 'Delete') {
+      var selection = _this2.getSelection();
+      var canRemove = key === 'Backspace' && selection.end > 0 || key === 'Delete' && _this2.value.length > selection.start;
+
+      if (!canRemove) {
+        return;
+      }
+
+      _this2.backspaceOrDeleteRemoval = {
+        key: key,
+        selection: _this2.getSelection()
+      };
     }
   };
 
-  this.onKeyPress = function (event) {
-    var key = event.key,
-        ctrlKey = event.ctrlKey,
-        metaKey = event.metaKey;
-
-    var hasHandler = typeof _this2.props.onKeyPress === 'function';
-    if (key === 'Enter' || ctrlKey || metaKey) {
-      if (hasHandler) {
-        _this2.props.onKeyPress(event);
-      }
-      return;
-    }
-
-    if (_this2.isWindowsPhoneBrowser) {
-      return;
-    }
-
-    var cursorPos = _this2.getCursorPos();
-    var selection = _this2.getSelection();
-    var value = _this2.state.value;
+  this.onChange = function (event) {
+    var paste = _this2.paste;
     var _maskOptions = _this2.maskOptions,
         mask = _maskOptions.mask,
+        maskChar = _maskOptions.maskChar,
         lastEditablePos = _maskOptions.lastEditablePos,
         prefix = _maskOptions.prefix;
 
 
-    if (isPermanentChar(_this2.maskOptions, cursorPos) && mask[cursorPos] === key) {
-      value = insertString(_this2.maskOptions, value, key, cursorPos);
-      ++cursorPos;
-    } else {
-      var editablePos = _this2.getRightEditablePos(cursorPos);
-      if (editablePos !== null && isAllowedChar(_this2.maskOptions, editablePos, key)) {
-        value = clearRange(_this2.maskOptions, value, selection.start, selection.length);
-        value = insertString(_this2.maskOptions, value, key, editablePos);
-        cursorPos = editablePos + 1;
-      } else {
-
-        if (typeof _this2.props.invalidCharCallback === 'function') {
-          _this2.props.invalidCharCallback();
-        }
-      }
-    }
-
-    if (value !== _this2.state.value) {
-      _this2.setInputValue(value);
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : value
-      });
-      if (typeof _this2.props.onChange === 'function') {
-        _this2.props.onChange(event);
-      }
-    }
-
-    event.preventDefault();
-
-    if (cursorPos < lastEditablePos && cursorPos > prefix.length) {
-      cursorPos = _this2.getRightEditablePos(cursorPos);
-    }
-    _this2.setCursorPos(cursorPos);
-  };
-
-  this.onChange = function (event) {
-    var pasteSelection = _this2.pasteSelection;
-    var _maskOptions2 = _this2.maskOptions,
-        mask = _maskOptions2.mask,
-        maskChar = _maskOptions2.maskChar,
-        lastEditablePos = _maskOptions2.lastEditablePos,
-        prefix = _maskOptions2.prefix;
-
     var value = _this2.getInputValue();
-    if (!value && _this2.preventEmptyChange) {
-      _this2.disableValueAccessors();
-      _this2.preventEmptyChange = false;
-      _this2.setInputValue(_this2.state.value);
+    var oldValue = _this2.value;
+
+    if (paste) {
+      _this2.paste = null;
+      _this2.pasteText(paste.value, value, paste.selection, event);
       return;
     }
-    var oldValue = _this2.state.value;
-    if (pasteSelection) {
-      _this2.pasteSelection = null;
-      _this2.pasteText(oldValue, value, pasteSelection, event);
-      return;
-    }
+
     var selection = _this2.getSelection();
     var cursorPos = selection.end;
     var maskLen = mask.length;
@@ -781,7 +620,27 @@ var _initialiseProps = function _initialiseProps() {
     var clearedValue;
     var enteredString;
 
-    if (valueLen > oldValueLen) {
+    if (_this2.backspaceOrDeleteRemoval) {
+      var deleteFromRight = _this2.backspaceOrDeleteRemoval.key === 'Delete';
+      value = _this2.value;
+      selection = _this2.backspaceOrDeleteRemoval.selection;
+      cursorPos = selection.start;
+
+      _this2.backspaceOrDeleteRemoval = null;
+
+      if (selection.length) {
+        value = clearRange(_this2.maskOptions, value, selection.start, selection.length);
+      } else if (selection.start < prefix.length || !deleteFromRight && selection.start === prefix.length) {
+        cursorPos = prefix.length;
+      } else {
+        var editablePos = deleteFromRight ? _this2.getRightEditablePos(cursorPos) : _this2.getLeftEditablePos(cursorPos - 1);
+
+        if (editablePos !== null) {
+          value = clearRange(_this2.maskOptions, value, editablePos, 1);
+          cursorPos = editablePos;
+        }
+      }
+    } else if (valueLen > oldValueLen) {
       var enteredStringLen = valueLen - oldValueLen;
       var startPos = selection.end - enteredStringLen;
       enteredString = value.substr(startPos, enteredStringLen);
@@ -800,7 +659,10 @@ var _initialiseProps = function _initialiseProps() {
       value = insertString(_this2.maskOptions, oldValue, enteredString, cursorPos);
 
       if (enteredStringLen !== 1 || cursorPos >= prefix.length && cursorPos < lastEditablePos) {
-        cursorPos = getFilledLength(_this2.maskOptions, clearedValue);
+        cursorPos = Math.max(getFilledLength(_this2.maskOptions, clearedValue), cursorPos);
+        if (cursorPos < lastEditablePos) {
+          cursorPos = _this2.getRightEditablePos(cursorPos);
+        }
       } else if (cursorPos < lastEditablePos) {
         cursorPos++;
       }
@@ -819,87 +681,58 @@ var _initialiseProps = function _initialiseProps() {
       clearedValue = insertString(_this2.maskOptions, clearedValue, enteredString, 0);
 
       if (!clearOnly) {
-        cursorPos = getFilledLength(_this2.maskOptions, clearedValue);
+        cursorPos = Math.max(getFilledLength(_this2.maskOptions, clearedValue), cursorPos);
+        if (cursorPos < lastEditablePos) {
+          cursorPos = _this2.getRightEditablePos(cursorPos);
+        }
       } else if (cursorPos < prefix.length) {
         cursorPos = prefix.length;
       }
     }
     value = formatValue(_this2.maskOptions, value);
 
+    _this2.setInputValue(value);
+
+    if (typeof _this2.props.onChange === 'function') {
+      _this2.props.onChange(event);
+    }
+
     if (_this2.isWindowsPhoneBrowser) {
-      event.persist();
-      setTimeout(function () {
-        if (_this2.unmounted) {
-          return;
-        }
-
-        _this2.setInputValue(value);
-
-        if (!_this2.hasValue) {
-          _this2.setState({
-            value: value
-          });
-        }
-
-        if (typeof _this2.props.onChange === 'function') {
-          _this2.props.onChange(event);
-        }
-
-        _this2.setCursorPos(cursorPos);
-      }, 0);
-    } else {
-      // prevent android autocomplete insertion on backspace
-      if (!_this2.canUseAccessors || !_this2.isAndroidBrowser) {
-        _this2.setInputValue(value);
-      }
-
-      if (_this2.canUseAccessors && (_this2.isAndroidFirefox && value && !_this2.getInputValue() || _this2.isAndroidBrowser)) {
-        _this2.value = value;
-        _this2.enableValueAccessors();
-        if (_this2.isAndroidFirefox) {
-          _this2.preventEmptyChange = true;
-        }
-        setTimeout(function () {
-          _this2.preventEmptyChange = false;
-          _this2.disableValueAccessors();
-        }, 0);
-      }
-
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : value
+      defer(function () {
+        _this2.setSelection(cursorPos, 0);
       });
-
-      if (typeof _this2.props.onChange === 'function') {
-        _this2.props.onChange(event);
-      }
-
+    } else {
       _this2.setCursorPos(cursorPos);
     }
   };
 
   this.onFocus = function (event) {
-    if (!_this2.state.value) {
-      var prefix = _this2.maskOptions.prefix;
-      var value = formatValue(_this2.maskOptions, prefix);
-      var inputValue = formatValue(_this2.maskOptions, value);
+    _this2.focused = true;
 
-      // do not use this.getInputValue and this.setInputValue as this.input
-      // can be undefined at this moment if autoFocus attribute is set
-      var isInputValueChanged = inputValue !== event.target.value;
+    if (_this2.maskOptions.mask) {
+      if (!_this2.value) {
+        var prefix = _this2.maskOptions.prefix;
+        var value = formatValue(_this2.maskOptions, prefix);
+        var inputValue = formatValue(_this2.maskOptions, value);
 
-      if (isInputValueChanged) {
-        event.target.value = inputValue;
+        // do not use this.getInputValue and this.setInputValue as this.input
+        // can be undefined at this moment if autoFocus attribute is set
+        var isInputValueChanged = inputValue !== event.target.value;
+
+        if (isInputValueChanged) {
+          event.target.value = inputValue;
+        }
+
+        _this2.value = inputValue;
+
+        if (isInputValueChanged && typeof _this2.props.onChange === 'function') {
+          _this2.props.onChange(event);
+        }
+
+        _this2.setCursorToEnd();
+      } else if (getFilledLength(_this2.maskOptions, _this2.value) < _this2.maskOptions.mask.length) {
+        _this2.setCursorToEnd();
       }
-
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : inputValue
-      }, _this2.setCursorToEnd);
-
-      if (isInputValueChanged && typeof _this2.props.onChange === 'function') {
-        _this2.props.onChange(event);
-      }
-    } else if (getFilledLength(_this2.maskOptions, _this2.state.value) < _this2.maskOptions.mask.length) {
-      _this2.setCursorToEnd();
     }
 
     if (typeof _this2.props.onFocus === 'function') {
@@ -908,17 +741,15 @@ var _initialiseProps = function _initialiseProps() {
   };
 
   this.onBlur = function (event) {
-    if (!_this2.props.alwaysShowMask && isEmpty(_this2.maskOptions, _this2.state.value)) {
+    _this2.focused = false;
+
+    if (_this2.maskOptions.mask && !_this2.props.alwaysShowMask && isEmpty(_this2.maskOptions, _this2.value)) {
       var inputValue = '';
       var isInputValueChanged = inputValue !== _this2.getInputValue();
 
       if (isInputValueChanged) {
         _this2.setInputValue(inputValue);
       }
-
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : ''
-      });
 
       if (isInputValueChanged && typeof _this2.props.onChange === 'function') {
         _this2.props.onChange(event);
@@ -931,27 +762,17 @@ var _initialiseProps = function _initialiseProps() {
   };
 
   this.onPaste = function (event) {
-    if (_this2.isAndroidBrowser) {
-      _this2.pasteSelection = _this2.getSelection();
+    if (typeof _this2.props.onPaste === 'function') {
+      _this2.props.onPaste(event);
+    }
+
+    if (_this2.isAndroidBrowser && !event.defaultPrevented) {
+      _this2.paste = {
+        value: _this2.getInputValue(),
+        selection: _this2.getSelection()
+      };
       _this2.setInputValue('');
-      return;
     }
-
-    var text;
-    if (window.clipboardData && window.clipboardData.getData) {
-      // IE
-      text = window.clipboardData.getData('Text');
-    } else if (event.clipboardData && event.clipboardData.getData) {
-      text = event.clipboardData.getData('text/plain');
-    }
-
-    if (text) {
-      var value = _this2.state.value;
-      var selection = _this2.getSelection();
-      _this2.pasteText(value, text, selection, event);
-    }
-
-    event.preventDefault();
   };
 
   this.pasteText = function (value, text, selection, event) {
@@ -965,12 +786,7 @@ var _initialiseProps = function _initialiseProps() {
     cursorPos = _this2.getRightEditablePos(cursorPos) || cursorPos;
 
     if (value !== _this2.getInputValue()) {
-      if (event) {
-        _this2.setInputValue(value);
-      }
-      _this2.setState({
-        value: _this2.hasValue ? _this2.state.value : value
-      });
+      _this2.setInputValue(value);
       if (event && typeof _this2.props.onChange === 'function') {
         _this2.props.onChange(event);
       }
@@ -985,25 +801,24 @@ var _initialiseProps = function _initialiseProps() {
         alwaysShowMask = _props.alwaysShowMask,
         maskChar = _props.maskChar,
         formatChars = _props.formatChars,
-        invalidCharCallback = _props.invalidCharCallback,
-        props = _objectWithoutProperties(_props, ['mask', 'alwaysShowMask', 'maskChar', 'formatChars', 'invalidCharCallback']);
+        props = _objectWithoutProperties(_props, ['mask', 'alwaysShowMask', 'maskChar', 'formatChars']);
 
     if (_this2.maskOptions.mask) {
       if (!props.disabled && !props.readOnly) {
-        var handlersKeys = ['onFocus', 'onBlur', 'onChange', 'onKeyDown', 'onKeyPress', 'onPaste'];
+        var handlersKeys = ['onChange', 'onKeyDown', 'onPaste'];
         handlersKeys.forEach(function (key) {
           props[key] = _this2[key];
         });
       }
 
       if (props.value != null) {
-        props.value = _this2.state.value;
+        props.value = _this2.value;
       }
     }
 
     return React.createElement('input', _extends({ ref: function ref(_ref) {
         return _this2.input = _ref;
-      } }, props));
+      } }, props, { onFocus: _this2.onFocus, onBlur: _this2.onBlur }));
   };
 };
 
