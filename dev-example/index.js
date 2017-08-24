@@ -13,8 +13,12 @@ class Input extends React.Component {
     });
   }
 
+  invalidCharCallback = (event) => {
+    console.log("test");
+  }
+
   render() {
-    return <InputMask mask="**99-9999-9999" value={this.state.value} onChange={this.onChange} />;
+    return <InputMask mask="9999-9999-9999" value={this.state.value} onChange={this.onChange} invalidCharCallback={this.invalidCharCallback}/>;
   }
 }
 
@@ -29,9 +33,11 @@ function escapeHtml(unsafe) {
     .replace(/'/g, '&#039;');
 }
 
+/*
 var consoleDiv = document.getElementById('console');
 var log = console.log;
 console.log = (text, ...rest) => {
   log.apply(console, [text, ...rest]);
   consoleDiv.innerHTML = `${escapeHtml(text)}<br/>${consoleDiv.innerHTML}`;
 };
+*/

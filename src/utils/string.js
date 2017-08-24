@@ -114,10 +114,11 @@ export function clearRange(maskOptions, value, start, len) {
     .join('');
 }
 
-export function insertString(maskOptions, value, insertStr, insertPos) {
+export function insertString(maskOptions, value, insertStr, insertPos, invalidCharCallback) {
   var { mask, maskChar, prefix } = maskOptions;
   var arrayInsertStr = insertStr.split('');
   var isInputFilled = isFilled(maskOptions, value);
+
 
   var isUsablePosition = (pos, character) => {
     return !isPermanentChar(maskOptions, pos)
@@ -158,6 +159,11 @@ export function insertString(maskOptions, value, insertStr, insertPos) {
                     ||
                     insertCharacter === maskChar;
     if (!isAllowed) {
+
+      if(typeof invalidCharCallback === "function") {
+        invalidCharCallback();
+      }
+
       return true;
     }
 

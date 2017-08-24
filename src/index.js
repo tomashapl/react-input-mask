@@ -23,10 +23,12 @@ class InputElement extends React.Component {
   constructor(props) {
     super(props);
 
-    var { mask, maskChar, formatChars, defaultValue, value, alwaysShowMask } = props;
+    var { mask, maskChar, formatChars, defaultValue, value, alwaysShowMask, invalidCharCallback } = props;
 
     this.hasValue = value != null;
     this.maskOptions = parseMask(mask, maskChar, formatChars);
+    this.invalidCharCallback = invalidCharCallback;
+
 
     if (defaultValue == null) {
       defaultValue = '';
@@ -266,7 +268,7 @@ class InputElement extends React.Component {
   }
 
   onChange = (event) => {
-    var { paste } = this;
+    var { paste, invalidCharCallback } = this;
     var { mask, maskChar, lastEditablePos, prefix } = this.maskOptions;
 
     var value = this.getInputValue();
@@ -323,9 +325,9 @@ class InputElement extends React.Component {
       value = value.substr(0, startPos) + value.substr(startPos + enteredStringLen);
 
       clearedValue = clearRange(this.maskOptions, value, startPos, maskLen - startPos);
-      clearedValue = insertString(this.maskOptions, clearedValue, enteredString, cursorPos);
+      clearedValue = insertString(this.maskOptions, clearedValue, enteredString, cursorPos, invalidCharCallback);
 
-      value = insertString(this.maskOptions, oldValue, enteredString, cursorPos);
+      value = insertString(this.maskOptions, oldValue, enteredString, cursorPos, invalidCharCallback);
 
       if (enteredStringLen !== 1 || (cursorPos >= prefix.length && cursorPos < lastEditablePos)) {
         cursorPos = Math.max(getFilledLength(this.maskOptions, clearedValue), cursorPos);
@@ -343,11 +345,11 @@ class InputElement extends React.Component {
       clearedValue = clearRange(this.maskOptions, oldValue, selection.end, removedLen);
 
       if (maskChar) {
-        value = insertString(this.maskOptions, clearedValue, enteredString, 0);
+        value = insertString(this.maskOptions, clearedValue, enteredString, 0, invalidCharCallback);
       }
 
       clearedValue = clearRange(this.maskOptions, clearedValue, selection.end, maskLen - selection.end);
-      clearedValue = insertString(this.maskOptions, clearedValue, enteredString, 0);
+      clearedValue = insertString(this.maskOptions, clearedValue, enteredString, 0, invalidCharCallback);
 
       if (!clearOnly) {
         cursorPos = Math.max(getFilledLength(this.maskOptions, clearedValue), cursorPos);
@@ -450,7 +452,7 @@ class InputElement extends React.Component {
       value = clearRange(this.maskOptions, value, cursorPos, selection.length);
     }
     var textLen = getInsertStringLength(this.maskOptions, value, text, cursorPos);
-    value = insertString(this.maskOptions, value, text, cursorPos);
+    value = insertString(this.maskOptions, value, text, cursorPos, this.invalidCharCallback);
     cursorPos += textLen;
     cursorPos = this.getRightEditablePos(cursorPos) || cursorPos;
 
